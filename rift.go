@@ -7,29 +7,30 @@ import (
 )
 
 // Unbind extracts public fields from a struct.
-// It returns a slice of values that contain the field's path, type, and value.
-func Unbind(v any) []F {
+// It returns a slice of unbound values that
+// contain the field's path, type, and value.
+func Unbind(v any) []Unbound {
 	return unbind(reflect.ValueOf(v), "")
 }
 
-func unbind(v reflect.Value, path string) (fs []F) {
+func unbind(v reflect.Value, path string) (vs []Unbound) {
 	switch v.Kind() {
 	case reflect.Pointer:
-		fs = append(fs, unbind(reflect.Indirect(v), path)...)
+		vs = append(vs, unbind(reflect.Indirect(v), path)...)
 	case reflect.Struct:
 		for i := range v.NumField() {
 			f := v.Field(i)
 			p := v.Type().Field(i).Name
-			fs = append(fs, unbind(f, joinPath(path, p))...)
+			vs = append(vs, unbind(f, joinPath(path, p))...)
 		}
 	case reflect.Slice:
 		for i := range v.Len() {
 			f := v.Index(i)
 			p := strconv.Itoa(i)
-			fs = append(fs, unbind(f, joinPath(path, p))...)
+			vs = append(vs, unbind(f, joinPath(path, p))...)
 		}
 	default:
-		fs = append(fs, Field(path, v.Interface()))
+		vs = append(vs, Field(path, v.Interface()))
 	}
 	return
 }
@@ -41,95 +42,129 @@ func joinPath(path, subpath string) string {
 	return subpath
 }
 
-// Bind binds values to a struct based on the provided paths.
-// It returns a slice of bound values that contain the field's path, type, new value, and old value.
-func Bind(dst any, fs ...F) []Bound {
-	bs := make([]Bound, 0, len(fs))
+// Bind sets values to a struct based on the provided fields.
+// It returns a slice of bound values, that contain the path,
+// the type, the new value set, and the old value before set.
+func Bind(dst any, fs ...Unbound) []Bound {
+	bds := make([]Bound, 0, len(fs))
 	vOf := reflect.ValueOf(dst)
 	for _, f := range fs {
-		b := bind(vOf, reflect.ValueOf(f.Value), f.Path)
-		bs = append(bs, b)
+		old := bind(vOf, reflect.ValueOf(f.Value), f.Path)
+		bnd := Bound{Path: f.Path, Type: f.Type, New: f.Value, Old: old}
+		bds = append(bds, bnd)
 	}
-	return bs
+	return bds
 }
 
-func bind(dst, val reflect.Value, path string) Bound {
-	var b Bound
-	if path == "" {
-		b = Bound{Type: val.Type().Name(), NewValue: val.Interface(), OldValue: dst.Interface()}
-		dst.Set(val)
-		return b
-	}
-	nameOrIndex, nextPath, _ := strings.Cut(path, ".")
+func bind(dst, val reflect.Value, path string) (old any) {
+
+	ptr := dst
+	dst = reflect.Indirect(dst)
+
+	keyOrIdx, rest, _ := strings.Cut(path, ".")
+
 	switch dst.Kind() {
 	case reflect.Interface:
-		switch {
-		case dst.Interface() == nil:
-			dst.Set(reflect.MakeMap(reflect.TypeFor[map[string]any]()))
+		if path == "" {
+			old = dst.Interface()
+			dst.Set(val)
+			return
 		}
-		b = bind(dst.Elem(), val, path)
-	case reflect.Pointer:
-		if dst.IsNil() {
-			dst.Set(reflect.New(dst.Type().Elem()))
-		}
-		b = bind(reflect.Indirect(dst), val, path)
-	case reflect.Struct:
-		field := dst.FieldByName(nameOrIndex)
-		b = bind(field, val, nextPath)
-	case reflect.Slice:
-		index, _ := strconv.Atoi(nameOrIndex)
-		if index < dst.Len() {
-			item := dst.Index(index)
-			b = bind(item, val, nextPath)
+		if n, ok := getNumber(keyOrIdx); ok {
+			if dst.IsNil() {
+				new := reflect.MakeSlice(reflect.TypeFor[[]any](), n+1, n+1)
+				dst.Set(new)
+				old = bind(dst.Elem().Index(n), val, rest)
+			} else if n >= dst.Elem().Len() {
+				new := reflect.MakeSlice(dst.Elem().Type(), n+1, n+1)
+				reflect.Copy(new, dst.Elem())
+				dst.Set(new)
+				old = bind(new.Index(n), val, rest)
+			} else {
+				old = bind(dst.Elem().Index(n), val, rest)
+			}
 		} else {
-			item := reflect.New(dst.Type().Elem()).Elem()
-			b = bind(item, val, nextPath)
-			newSlice := reflect.MakeSlice(dst.Type(), index+1, index+1)
-			reflect.Copy(newSlice, dst)
-			newSlice.Index(index).Set(item)
-			dst.Set(newSlice)
+			if dst.IsNil() {
+				new := reflect.MakeMap(reflect.TypeFor[map[string]any]())
+				dst.Set(new)
+				old = bind(new, val, path)
+			} else {
+				old = bind(dst.Elem(), val, path)
+			}
 		}
+		return
+	case reflect.Slice:
+		n, _ := getNumber(keyOrIdx)
+		if n < dst.Len() {
+			old = bind(dst.Index(n), val, rest)
+		} else {
+			newSlice := reflect.MakeSlice(dst.Type(), n+1, n+1)
+			reflect.Copy(newSlice, dst)
+			dst.Set(newSlice)
+			old = bind(dst.Index(n), val, rest)
+		}
+		return
 	case reflect.Map:
 		if dst.IsNil() {
-			dst.Set(reflect.MakeMap(dst.Type()))
+			new := reflect.MakeMap(dst.Type())
+			dst.Set(new)
 		}
-		var elem reflect.Value
-		key := reflect.ValueOf(nameOrIndex)
-		if v := dst.MapIndex(key); v.IsValid() {
-			elem = v
-		} else if nextPath == "" {
-			// If the key does not exist, create a new element
-			// with the type of the map's value.
-			elem = reflect.New(dst.Type().Elem()).Elem()
-		} else {
-			// If there is more path, then the element is a map.
-			elem = reflect.MakeMap(reflect.TypeFor[map[string]any]())
+		key := reflect.ValueOf(keyOrIdx)
+		item := dst.MapIndex(key)
+		if !item.IsValid() {
+			item = reflect.New(dst.Type().Elem()).Elem()
 		}
-		b = bind(elem, val, nextPath)
-		dst.SetMapIndex(key, elem)
+		n := reflect.New(item.Type()).Elem()
+		n.Set(item)
+		old = bind(n, val, rest)
+		dst.SetMapIndex(key, n.Elem())
+		return
+	case reflect.Struct:
+		field := dst.FieldByName(keyOrIdx)
+		old = bind(field, val, rest)
+		return
 	}
-	b.Path = path
-	return b
+	if ptr.Kind() == reflect.Pointer {
+		if ptr.IsNil() {
+			n := reflect.New(ptr.Type().Elem())
+			_ = bind(n.Elem(), val, path)
+			ptr.Set(n)
+			old = nil
+		} else {
+			old = bind(ptr.Elem(), val, path)
+		}
+	} else {
+		old = dst.Interface()
+		dst.Set(val)
+	}
+	return
 }
 
 // Field creates a field with the specified path and value.
-func Field(path string, value any) F {
-	return F{
+func Field(path string, value any) Unbound {
+	return Unbound{
 		Path:  path,
 		Type:  reflect.TypeOf(value).Name(),
 		Value: value,
 	}
 }
 
-type F struct {
+// Unbound represents a field that is not yet bound to a struct.
+type Unbound struct {
 	Path  string
 	Type  string
 	Value any
 }
 
+// Bound represents a field that has been bound to a struct.
 type Bound struct {
-	Path     string
-	Type     string
-	NewValue any
-	OldValue any
+	Path string
+	Type string
+	New  any // New value set.
+	Old  any // Old value before set.
+}
+
+func getNumber(path string) (int, bool) {
+	v, err := strconv.Atoi(path)
+	return v, err == nil
 }
