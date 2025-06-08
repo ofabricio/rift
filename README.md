@@ -33,7 +33,7 @@ func main() {
     // {John [{Main 100} {Avenue 200}]}
 
     for _, v := range bs {
-        fmt.Println(v.Path, v.Type, v.OldValue, v.NewValue)
+        fmt.Println(v.Path, v.Type, v.Old, v.New)
         // Name               string Luke John
         // Addresses.0.Street string      Main
         // Addresses.0.Number int    0    100
