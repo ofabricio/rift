@@ -96,6 +96,36 @@ func TestBind(t *testing.T) {
 				Struct:   &TestData{Int: 5, Slice: []TestData{{Int: 6}}},
 			},
 		},
+		{
+			When: []rift.F{
+				rift.Field("Any.Int", 3),
+				rift.Field("Any.Str", "a"),
+				rift.Field("Any.Map.Int", 4),
+				rift.Field("Any.Map.Str", "b"),
+				rift.Field("Map.Int", 3),
+				rift.Field("Map.Str", "a"),
+				rift.Field("Map.Map.Int", 4),
+				rift.Field("Map.Map.Str", "b"),
+			},
+			Then: TestData{
+				Any: map[string]any{
+					"Int": 3,
+					"Str": "a",
+					"Map": map[string]any{
+						"Int": 4,
+						"Str": "b",
+					},
+				},
+				Map: map[string]any{
+					"Int": 3,
+					"Str": "a",
+					"Map": map[string]any{
+						"Int": 4,
+						"Str": "b",
+					},
+				},
+			},
+		},
 	}
 
 	for i, tc := range tt {
@@ -111,6 +141,8 @@ type TestData struct {
 	Slice    []TestData
 	SlicePtr []*TestData
 	Struct   *TestData
+	Any      any
+	Map      map[string]any
 }
 
 func assertEqual(t *testing.T, exp, got any, msgs ...any) {

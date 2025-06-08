@@ -62,6 +62,12 @@ func bind(dst, val reflect.Value, path string) Bound {
 	}
 	nameOrIndex, nextPath, _ := strings.Cut(path, ".")
 	switch dst.Kind() {
+	case reflect.Interface:
+		switch {
+		case dst.Interface() == nil:
+			dst.Set(reflect.MakeMap(reflect.TypeFor[map[string]any]()))
+		}
+		b = bind(dst.Elem(), val, path)
 	case reflect.Pointer:
 		if dst.IsNil() {
 			dst.Set(reflect.New(dst.Type().Elem()))
@@ -83,6 +89,24 @@ func bind(dst, val reflect.Value, path string) Bound {
 			newSlice.Index(index).Set(item)
 			dst.Set(newSlice)
 		}
+	case reflect.Map:
+		if dst.IsNil() {
+			dst.Set(reflect.MakeMap(dst.Type()))
+		}
+		var elem reflect.Value
+		key := reflect.ValueOf(nameOrIndex)
+		if v := dst.MapIndex(key); v.IsValid() {
+			elem = v
+		} else if nextPath == "" {
+			// If the key does not exist, create a new element
+			// with the type of the map's value.
+			elem = reflect.New(dst.Type().Elem()).Elem()
+		} else {
+			// If there is more path, then the element is a map.
+			elem = reflect.MakeMap(reflect.TypeFor[map[string]any]())
+		}
+		b = bind(elem, val, nextPath)
+		dst.SetMapIndex(key, elem)
 	}
 	b.Path = path
 	return b
