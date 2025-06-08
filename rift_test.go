@@ -1,6 +1,7 @@
 package rift_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -56,6 +57,100 @@ func Example() {
 	// Addresses.0.Number int 100
 	// Addresses.1.Street string Avenue
 	// Addresses.1.Number int 200
+}
+
+func ExampleDescribe() {
+
+	var user struct {
+		Name      string
+		Addresses []struct {
+			Street string
+			Number int
+		}
+	}
+
+	rift.Bind(&user,
+		rift.Field("Name", "John"),
+		rift.Field("Addresses.0.Street", "Main"),
+		rift.Field("Addresses.0.Number", 100),
+		rift.Field("Addresses.1.Street", "Avenue"),
+		rift.Field("Addresses.1.Number", 200),
+	)
+
+	tree := rift.Describe(user)
+
+	data, _ := json.MarshalIndent(tree, "", "    ")
+
+	fmt.Println(string(data))
+
+	// Output:
+	// {
+	//     "Name": "",
+	//     "Path": "",
+	//     "Type": "struct",
+	//     "Value": null,
+	//     "Next": [
+	//         {
+	//             "Name": "Name",
+	//             "Path": "Name",
+	//             "Type": "string",
+	//             "Value": "John",
+	//             "Next": null
+	//         },
+	//         {
+	//             "Name": "Addresses",
+	//             "Path": "Addresses",
+	//             "Type": "slice",
+	//             "Value": null,
+	//             "Next": [
+	//                 {
+	//                     "Name": "0",
+	//                     "Path": "Addresses.0",
+	//                     "Type": "struct",
+	//                     "Value": null,
+	//                     "Next": [
+	//                         {
+	//                             "Name": "Street",
+	//                             "Path": "Addresses.0.Street",
+	//                             "Type": "string",
+	//                             "Value": "Main",
+	//                             "Next": null
+	//                         },
+	//                         {
+	//                             "Name": "Number",
+	//                             "Path": "Addresses.0.Number",
+	//                             "Type": "int",
+	//                             "Value": 100,
+	//                             "Next": null
+	//                         }
+	//                     ]
+	//                 },
+	//                 {
+	//                     "Name": "1",
+	//                     "Path": "Addresses.1",
+	//                     "Type": "struct",
+	//                     "Value": null,
+	//                     "Next": [
+	//                         {
+	//                             "Name": "Street",
+	//                             "Path": "Addresses.1.Street",
+	//                             "Type": "string",
+	//                             "Value": "Avenue",
+	//                             "Next": null
+	//                         },
+	//                         {
+	//                             "Name": "Number",
+	//                             "Path": "Addresses.1.Number",
+	//                             "Type": "int",
+	//                             "Value": 200,
+	//                             "Next": null
+	//                         }
+	//                     ]
+	//                 }
+	//             ]
+	//         }
+	//     ]
+	// }
 }
 
 func TestBind(t *testing.T) {
@@ -404,6 +499,112 @@ func TestUnbind(t *testing.T) {
 	for _, tc := range tt {
 		bs := rift.Unbind(&tc.Give)
 		assertEqual(t, tc.Then, bs, tc.Desc)
+	}
+}
+
+func TestDescribe(t *testing.T) {
+
+	tt := []struct {
+		Desc string
+		Give any
+		Then any
+	}{
+		{
+			Desc: "nil root",
+			Give: nil,
+			Then: rift.Tree{Type: "interface"},
+		},
+		{
+			Desc: "int root",
+			Give: 3,
+			Then: rift.Tree{Type: "int", Value: 3},
+		},
+		{
+			Desc: "zero struct",
+			Give: TestData{},
+			Then: rift.Tree{
+				Type: "struct",
+				Next: []rift.Tree{
+					{Name: "Int", Path: "Int", Type: "int", Value: 0},
+					{Name: "IntPtr", Path: "IntPtr", Type: "int", Value: nil},
+					{Name: "String", Path: "String", Type: "string", Value: ""},
+					{Name: "Slice", Path: "Slice", Type: "slice", Value: nil},
+					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Value: nil},
+					{Name: "Struct", Path: "Struct", Type: "struct", Value: nil},
+					{Name: "Any", Path: "Any", Type: "interface", Value: nil},
+					{Name: "Map", Path: "Map", Type: "map", Value: nil},
+				},
+			},
+		},
+		{
+			Desc: "filled struct",
+			Give: TestData{
+				Int:      11,
+				IntPtr:   ptr(22),
+				String:   "Hello",
+				Slice:    []TestData{{Int: 33}},
+				SlicePtr: []*TestData{{Int: 44}},
+				Struct:   &TestData{Int: 55},
+				Any:      map[string]any{"Int": 66},
+				Map:      map[string]any{"Arr": []any{77, 88}},
+			},
+			Then: rift.Tree{
+				Type: "struct",
+				Next: []rift.Tree{
+					{Name: "Int", Path: "Int", Type: "int", Value: 11},
+					{Name: "IntPtr", Path: "IntPtr", Type: "int", Value: 22},
+					{Name: "String", Path: "String", Type: "string", Value: "Hello"},
+					{Name: "Slice", Path: "Slice", Type: "slice", Value: nil, Next: []rift.Tree{
+						{Name: "0", Path: "Slice.0", Type: "struct", Value: nil, Next: []rift.Tree{
+							{Name: "Int", Path: "Slice.0.Int", Type: "int", Value: 33},
+							{Name: "IntPtr", Path: "Slice.0.IntPtr", Type: "int", Value: nil},
+							{Name: "String", Path: "Slice.0.String", Type: "string", Value: ""},
+							{Name: "Slice", Path: "Slice.0.Slice", Type: "slice", Value: nil},
+							{Name: "SlicePtr", Path: "Slice.0.SlicePtr", Type: "slice", Value: nil},
+							{Name: "Struct", Path: "Slice.0.Struct", Type: "struct", Value: nil},
+							{Name: "Any", Path: "Slice.0.Any", Type: "interface", Value: nil},
+							{Name: "Map", Path: "Slice.0.Map", Type: "map", Value: nil},
+						}},
+					}},
+					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Value: nil, Next: []rift.Tree{
+						{Name: "0", Path: "SlicePtr.0", Type: "struct", Value: nil, Next: []rift.Tree{
+							{Name: "Int", Path: "SlicePtr.0.Int", Type: "int", Value: 44},
+							{Name: "IntPtr", Path: "SlicePtr.0.IntPtr", Type: "int", Value: nil},
+							{Name: "String", Path: "SlicePtr.0.String", Type: "string", Value: ""},
+							{Name: "Slice", Path: "SlicePtr.0.Slice", Type: "slice", Value: nil},
+							{Name: "SlicePtr", Path: "SlicePtr.0.SlicePtr", Type: "slice", Value: nil},
+							{Name: "Struct", Path: "SlicePtr.0.Struct", Type: "struct", Value: nil},
+							{Name: "Any", Path: "SlicePtr.0.Any", Type: "interface", Value: nil},
+							{Name: "Map", Path: "SlicePtr.0.Map", Type: "map", Value: nil},
+						}},
+					}},
+					{Name: "Struct", Path: "Struct", Type: "struct", Value: nil, Next: []rift.Tree{
+						{Name: "Int", Path: "Struct.Int", Type: "int", Value: 55},
+						{Name: "IntPtr", Path: "Struct.IntPtr", Type: "int", Value: nil},
+						{Name: "String", Path: "Struct.String", Type: "string", Value: ""},
+						{Name: "Slice", Path: "Struct.Slice", Type: "slice", Value: nil},
+						{Name: "SlicePtr", Path: "Struct.SlicePtr", Type: "slice", Value: nil},
+						{Name: "Struct", Path: "Struct.Struct", Type: "struct", Value: nil},
+						{Name: "Any", Path: "Struct.Any", Type: "interface", Value: nil},
+						{Name: "Map", Path: "Struct.Map", Type: "map", Value: nil},
+					}},
+					{Name: "Any", Path: "Any", Type: "map", Value: nil, Next: []rift.Tree{
+						{Name: "Int", Path: "Any.Int", Type: "int", Value: 66},
+					}},
+					{Name: "Map", Path: "Map", Type: "map", Value: nil, Next: []rift.Tree{
+						{Name: "Arr", Path: "Map.Arr", Type: "slice", Value: nil, Next: []rift.Tree{
+							{Name: "0", Path: "Map.Arr.0", Type: "int", Value: 77},
+							{Name: "1", Path: "Map.Arr.1", Type: "int", Value: 88},
+						}},
+					}},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		tree := rift.Describe(tc.Give)
+		assertEqual(t, tc.Then, tree, tc.Desc)
 	}
 }
 

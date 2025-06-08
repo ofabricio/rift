@@ -199,3 +199,62 @@ type Bound struct {
 	New  any // New value set.
 	Old  any // Old value before set.
 }
+
+// Describe returns a tree representation of the provided value.
+func Describe(v any) Tree {
+	var t Tree
+	describe(reflect.ValueOf(v), "", &t)
+	return t
+}
+
+func describe(v reflect.Value, path string, out *Tree) {
+	out.Path = path
+	out.Type = v.Kind().String()
+	switch v.Kind() {
+	case reflect.Invalid:
+		out.Type = reflect.Interface.String()
+	case reflect.Interface:
+		describe(v.Elem(), path, out)
+	case reflect.Pointer:
+		if v.IsNil() {
+			out.Type = v.Type().Elem().Kind().String()
+			return
+		}
+		describe(v.Elem(), path, out)
+	case reflect.Slice:
+		for i := range v.Len() {
+			f := v.Index(i)
+			p := strconv.Itoa(i)
+			n := Tree{Name: p}
+			describe(f, joinPath(path, p), &n)
+			out.Next = append(out.Next, n)
+		}
+	case reflect.Map:
+		for iter := v.MapRange(); iter.Next(); {
+			k := iter.Key()
+			v := iter.Value()
+			p := k.String()
+			n := Tree{Name: p}
+			describe(v, joinPath(path, p), &n)
+			out.Next = append(out.Next, n)
+		}
+	case reflect.Struct:
+		for i := range v.NumField() {
+			f := v.Field(i)
+			p := v.Type().Field(i).Name
+			n := Tree{Name: p}
+			describe(f, joinPath(path, p), &n)
+			out.Next = append(out.Next, n)
+		}
+	default:
+		out.Value = v.Interface()
+	}
+}
+
+type Tree struct {
+	Name  string
+	Path  string
+	Type  string
+	Value any
+	Next  []Tree
+}
