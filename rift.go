@@ -20,7 +20,11 @@ func unbind(v reflect.Value, path string) (vs []Unbound) {
 	case reflect.Interface:
 		vs = append(vs, unbind(v.Elem(), path)...)
 	case reflect.Pointer:
-		vs = append(vs, unbind(reflect.Indirect(v), path)...)
+		if v.IsNil() {
+			vs = append(vs, fieldWithType(path, nil, v.Type().Elem().Kind().String()))
+			return
+		}
+		vs = append(vs, unbind(v.Elem(), path)...)
 	case reflect.Struct:
 		for i := range v.NumField() {
 			f := v.Field(i)
@@ -28,6 +32,10 @@ func unbind(v reflect.Value, path string) (vs []Unbound) {
 			vs = append(vs, unbind(f, joinPath(path, p))...)
 		}
 	case reflect.Map:
+		if v.IsNil() || v.Len() == 0 {
+			vs = append(vs, fieldWithType(path, nil, reflect.Map.String()))
+			return
+		}
 		for iter := v.MapRange(); iter.Next(); {
 			k := iter.Key()
 			v := iter.Value()
@@ -35,6 +43,10 @@ func unbind(v reflect.Value, path string) (vs []Unbound) {
 			vs = append(vs, unbind(v, joinPath(path, p))...)
 		}
 	case reflect.Slice:
+		if v.IsNil() || v.Len() == 0 {
+			vs = append(vs, fieldWithType(path, nil, reflect.Slice.String()))
+			return
+		}
 		for i := range v.Len() {
 			f := v.Index(i)
 			p := strconv.Itoa(i)
@@ -153,15 +165,24 @@ func bind(dst, val reflect.Value, path string) (old any) {
 
 // Field creates a field with the specified path and value.
 func Field(path string, value any) Unbound {
-	v := "nil"
-	if value != nil {
-		v = reflect.TypeOf(value).Name()
+	if v := reflect.ValueOf(value); v.IsValid() {
+		return fieldWithType(path, value, v.Kind().String())
 	}
+	return fieldWithType(path, value, reflect.Interface.String())
+}
+
+// Field creates a field with the specified path and value.
+func fieldWithType(path string, value any, typ string) Unbound {
 	return Unbound{
 		Path:  path,
-		Type:  v,
+		Type:  typ,
 		Value: value,
 	}
+}
+
+func getNumber(path string) (int, bool) {
+	v, err := strconv.Atoi(path)
+	return v, err == nil
 }
 
 // Unbound represents a field that is not yet bound to a struct.
@@ -177,9 +198,4 @@ type Bound struct {
 	Type string
 	New  any // New value set.
 	Old  any // Old value before set.
-}
-
-func getNumber(path string) (int, bool) {
-	v, err := strconv.Atoi(path)
-	return v, err == nil
 }
