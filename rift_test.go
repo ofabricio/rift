@@ -333,6 +333,68 @@ func TestBind(t *testing.T) {
 	}
 }
 
+func TestUnbind(t *testing.T) {
+
+	tt := []struct {
+		Desc string
+		Give any
+		Then []rift.Unbound
+	}{
+		{
+			Desc: "Unbind empty struct",
+			Give: TestData{},
+			Then: []rift.Unbound{
+				{Path: "Int", Type: "int", Value: 0},
+				{Path: "IntPtr", Type: "nil", Value: nil},
+				{Path: "String", Type: "string", Value: ""},
+				{Path: "Struct", Type: "nil", Value: nil},
+				{Path: "Any", Type: "nil", Value: nil},
+			},
+		},
+		{
+			Desc: "Unbind filled struct",
+			Give: TestData{
+				Int:      11,
+				IntPtr:   ptr(22),
+				String:   "Hello",
+				Slice:    []TestData{{Int: 33}},
+				SlicePtr: []*TestData{{Int: 44}},
+				Struct:   &TestData{Int: 55},
+				Any:      map[string]any{"Int": 66},
+				Map:      map[string]any{"Arr": []any{77, 88}},
+			},
+			Then: []rift.Unbound{
+				{Path: "Int", Type: "int", Value: 11},
+				{Path: "IntPtr", Type: "int", Value: 22},
+				{Path: "String", Type: "string", Value: "Hello"},
+				{Path: "Slice.0.Int", Type: "int", Value: 33},
+				{Path: "Slice.0.IntPtr", Type: "nil", Value: nil},
+				{Path: "Slice.0.String", Type: "string", Value: ""},
+				{Path: "Slice.0.Struct", Type: "nil", Value: nil},
+				{Path: "Slice.0.Any", Type: "nil", Value: nil},
+				{Path: "SlicePtr.0.Int", Type: "int", Value: 44},
+				{Path: "SlicePtr.0.IntPtr", Type: "nil", Value: nil},
+				{Path: "SlicePtr.0.String", Type: "string", Value: ""},
+				{Path: "SlicePtr.0.Struct", Type: "nil", Value: nil},
+				{Path: "SlicePtr.0.Any", Type: "nil", Value: nil},
+				{Path: "Struct.Int", Type: "int", Value: 55},
+				{Path: "Struct.IntPtr", Type: "nil", Value: nil},
+				{Path: "Struct.String", Type: "string", Value: ""},
+				{Path: "Struct.Struct", Type: "nil", Value: nil},
+				{Path: "Struct.Any", Type: "nil", Value: nil},
+				{Path: "Any.Int", Type: "int", Value: 66},
+				{Path: "Map.Arr.0", Type: "int", Value: 77},
+				{Path: "Map.Arr.1", Type: "int", Value: 88},
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		bs := rift.Unbind(&tc.Give)
+		assertEqual(t, tc.Then, bs, tc.Desc)
+	}
+}
+
 type TestData struct {
 	Int      int
 	IntPtr   *int

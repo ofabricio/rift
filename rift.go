@@ -15,6 +15,10 @@ func Unbind(v any) []Unbound {
 
 func unbind(v reflect.Value, path string) (vs []Unbound) {
 	switch v.Kind() {
+	case reflect.Invalid:
+		vs = append(vs, Field(path, nil))
+	case reflect.Interface:
+		vs = append(vs, unbind(v.Elem(), path)...)
 	case reflect.Pointer:
 		vs = append(vs, unbind(reflect.Indirect(v), path)...)
 	case reflect.Struct:
@@ -22,6 +26,13 @@ func unbind(v reflect.Value, path string) (vs []Unbound) {
 			f := v.Field(i)
 			p := v.Type().Field(i).Name
 			vs = append(vs, unbind(f, joinPath(path, p))...)
+		}
+	case reflect.Map:
+		for iter := v.MapRange(); iter.Next(); {
+			k := iter.Key()
+			v := iter.Value()
+			p := k.String()
+			vs = append(vs, unbind(v, joinPath(path, p))...)
 		}
 	case reflect.Slice:
 		for i := range v.Len() {
@@ -142,9 +153,13 @@ func bind(dst, val reflect.Value, path string) (old any) {
 
 // Field creates a field with the specified path and value.
 func Field(path string, value any) Unbound {
+	v := "nil"
+	if value != nil {
+		v = reflect.TypeOf(value).Name()
+	}
 	return Unbound{
 		Path:  path,
-		Type:  reflect.TypeOf(value).Name(),
+		Type:  v,
 		Value: value,
 	}
 }
