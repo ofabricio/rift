@@ -72,8 +72,8 @@ func Bind(dst any, fs ...Unbound) []Bound {
 	bds := make([]Bound, 0, len(fs))
 	vOf := reflect.ValueOf(dst)
 	for _, f := range fs {
-		old := bind(vOf, reflect.ValueOf(f.Value), f.Path)
-		bnd := Bound{Path: f.Path, Type: f.Type, New: f.Value, Old: old}
+		old := bind(vOf, reflect.ValueOf(f.Data), f.Path)
+		bnd := Bound{Path: f.Path, Type: f.Type, New: f.Data, Old: old}
 		bds = append(bds, bnd)
 	}
 	return bds
@@ -174,9 +174,9 @@ func Field(path string, value any) Unbound {
 // Field creates a field with the specified path and value.
 func fieldWithType(path string, value any, typ string) Unbound {
 	return Unbound{
-		Path:  path,
-		Type:  typ,
-		Value: value,
+		Path: path,
+		Type: typ,
+		Data: value,
 	}
 }
 
@@ -187,9 +187,9 @@ func getNumber(path string) (int, bool) {
 
 // Unbound represents a field that is not yet bound to a struct.
 type Unbound struct {
-	Path  string
-	Type  string
-	Value any
+	Path string
+	Type string
+	Data any
 }
 
 // Bound represents a field that has been bound to a struct.
@@ -247,14 +247,14 @@ func describe(v reflect.Value, path string, out *Tree) {
 			out.Next = append(out.Next, n)
 		}
 	default:
-		out.Value = v.Interface()
+		out.Data = v.Interface()
 	}
 }
 
 type Tree struct {
-	Name  string
-	Path  string
-	Type  string
-	Value any
-	Next  []Tree
+	Name string
+	Path string
+	Type string
+	Data any
+	Next []Tree
 }

@@ -45,7 +45,7 @@ func main() {
     }
 
     for _, v := range rift.Unbind(&user) {
-        fmt.Println(v.Path, v.Type, v.Value)
+        fmt.Println(v.Path, v.Type, v.Data)
         // Name               string John
         // Addresses.0.Street string Main
         // Addresses.0.Number int    100
@@ -97,39 +97,39 @@ func main() {
     //     "Name": "",
     //     "Path": "",
     //     "Type": "struct",
-    //     "Value": null,
+    //     "Data": null,
     //     "Next": [
     //         {
     //             "Name": "Name",
     //             "Path": "Name",
     //             "Type": "string",
-    //             "Value": "John",
+    //             "Data": "John",
     //             "Next": null
     //         },
     //         {
     //             "Name": "Addresses",
     //             "Path": "Addresses",
     //             "Type": "slice",
-    //             "Value": null,
+    //             "Data": null,
     //             "Next": [
     //                 {
     //                     "Name": "0",
     //                     "Path": "Addresses.0",
     //                     "Type": "struct",
-    //                     "Value": null,
+    //                     "Data": null,
     //                     "Next": [
     //                         {
     //                             "Name": "Street",
     //                             "Path": "Addresses.0.Street",
     //                             "Type": "string",
-    //                             "Value": "Main",
+    //                             "Data": "Main",
     //                             "Next": null
     //                         },
     //                         {
     //                             "Name": "Number",
     //                             "Path": "Addresses.0.Number",
     //                             "Type": "int",
-    //                             "Value": 100,
+    //                             "Data": 100,
     //                             "Next": null
     //                         }
     //                     ]
@@ -138,20 +138,20 @@ func main() {
     //                     "Name": "1",
     //                     "Path": "Addresses.1",
     //                     "Type": "struct",
-    //                     "Value": null,
+    //                     "Data": null,
     //                     "Next": [
     //                         {
     //                             "Name": "Street",
     //                             "Path": "Addresses.1.Street",
     //                             "Type": "string",
-    //                             "Value": "Avenue",
+    //                             "Data": "Avenue",
     //                             "Next": null
     //                         },
     //                         {
     //                             "Name": "Number",
     //                             "Path": "Addresses.1.Number",
     //                             "Type": "int",
-    //                             "Value": 200,
+    //                             "Data": 200,
     //                             "Next": null
     //                         }
     //                     ]

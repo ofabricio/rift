@@ -39,7 +39,7 @@ func Example() {
 
 	fmt.Println("Unbind:")
 	for _, v := range rift.Unbind(&user) {
-		fmt.Println(v.Path, v.Type, v.Value)
+		fmt.Println(v.Path, v.Type, v.Data)
 	}
 
 	// Output:
@@ -88,39 +88,39 @@ func ExampleDescribe() {
 	//     "Name": "",
 	//     "Path": "",
 	//     "Type": "struct",
-	//     "Value": null,
+	//     "Data": null,
 	//     "Next": [
 	//         {
 	//             "Name": "Name",
 	//             "Path": "Name",
 	//             "Type": "string",
-	//             "Value": "John",
+	//             "Data": "John",
 	//             "Next": null
 	//         },
 	//         {
 	//             "Name": "Addresses",
 	//             "Path": "Addresses",
 	//             "Type": "slice",
-	//             "Value": null,
+	//             "Data": null,
 	//             "Next": [
 	//                 {
 	//                     "Name": "0",
 	//                     "Path": "Addresses.0",
 	//                     "Type": "struct",
-	//                     "Value": null,
+	//                     "Data": null,
 	//                     "Next": [
 	//                         {
 	//                             "Name": "Street",
 	//                             "Path": "Addresses.0.Street",
 	//                             "Type": "string",
-	//                             "Value": "Main",
+	//                             "Data": "Main",
 	//                             "Next": null
 	//                         },
 	//                         {
 	//                             "Name": "Number",
 	//                             "Path": "Addresses.0.Number",
 	//                             "Type": "int",
-	//                             "Value": 100,
+	//                             "Data": 100,
 	//                             "Next": null
 	//                         }
 	//                     ]
@@ -129,20 +129,20 @@ func ExampleDescribe() {
 	//                     "Name": "1",
 	//                     "Path": "Addresses.1",
 	//                     "Type": "struct",
-	//                     "Value": null,
+	//                     "Data": null,
 	//                     "Next": [
 	//                         {
 	//                             "Name": "Street",
 	//                             "Path": "Addresses.1.Street",
 	//                             "Type": "string",
-	//                             "Value": "Avenue",
+	//                             "Data": "Avenue",
 	//                             "Next": null
 	//                         },
 	//                         {
 	//                             "Name": "Number",
 	//                             "Path": "Addresses.1.Number",
 	//                             "Type": "int",
-	//                             "Value": 200,
+	//                             "Data": 200,
 	//                             "Next": null
 	//                         }
 	//                     ]
@@ -439,14 +439,14 @@ func TestUnbind(t *testing.T) {
 			Desc: "Unbind empty struct",
 			Give: TestData{},
 			Then: []rift.Unbound{
-				{Path: "Int", Type: "int", Value: 0},
-				{Path: "IntPtr", Type: "int", Value: nil},
-				{Path: "String", Type: "string", Value: ""},
-				{Path: "Slice", Type: "slice", Value: nil},
-				{Path: "SlicePtr", Type: "slice", Value: nil},
-				{Path: "Struct", Type: "struct", Value: nil},
-				{Path: "Any", Type: "interface", Value: nil},
-				{Path: "Map", Type: "map", Value: nil},
+				{Path: "Int", Type: "int", Data: 0},
+				{Path: "IntPtr", Type: "int", Data: nil},
+				{Path: "String", Type: "string", Data: ""},
+				{Path: "Slice", Type: "slice", Data: nil},
+				{Path: "SlicePtr", Type: "slice", Data: nil},
+				{Path: "Struct", Type: "struct", Data: nil},
+				{Path: "Any", Type: "interface", Data: nil},
+				{Path: "Map", Type: "map", Data: nil},
 			},
 		},
 		{
@@ -462,36 +462,36 @@ func TestUnbind(t *testing.T) {
 				Map:      map[string]any{"Arr": []any{77, 88}},
 			},
 			Then: []rift.Unbound{
-				{Path: "Int", Type: "int", Value: 11},
-				{Path: "IntPtr", Type: "int", Value: 22},
-				{Path: "String", Type: "string", Value: "Hello"},
-				{Path: "Slice.0.Int", Type: "int", Value: 33},
-				{Path: "Slice.0.IntPtr", Type: "int", Value: nil},
-				{Path: "Slice.0.String", Type: "string", Value: ""},
-				{Path: "Slice.0.Slice", Type: "slice", Value: nil},
-				{Path: "Slice.0.SlicePtr", Type: "slice", Value: nil},
-				{Path: "Slice.0.Struct", Type: "struct", Value: nil},
-				{Path: "Slice.0.Any", Type: "interface", Value: nil},
-				{Path: "Slice.0.Map", Type: "map", Value: nil},
-				{Path: "SlicePtr.0.Int", Type: "int", Value: 44},
-				{Path: "SlicePtr.0.IntPtr", Type: "int", Value: nil},
-				{Path: "SlicePtr.0.String", Type: "string", Value: ""},
-				{Path: "SlicePtr.0.Slice", Type: "slice", Value: nil},
-				{Path: "SlicePtr.0.SlicePtr", Type: "slice", Value: nil},
-				{Path: "SlicePtr.0.Struct", Type: "struct", Value: nil},
-				{Path: "SlicePtr.0.Any", Type: "interface", Value: nil},
-				{Path: "SlicePtr.0.Map", Type: "map", Value: nil},
-				{Path: "Struct.Int", Type: "int", Value: 55},
-				{Path: "Struct.IntPtr", Type: "int", Value: nil},
-				{Path: "Struct.String", Type: "string", Value: ""},
-				{Path: "Struct.Slice", Type: "slice", Value: nil},
-				{Path: "Struct.SlicePtr", Type: "slice", Value: nil},
-				{Path: "Struct.Struct", Type: "struct", Value: nil},
-				{Path: "Struct.Any", Type: "interface", Value: nil},
-				{Path: "Struct.Map", Type: "map", Value: nil},
-				{Path: "Any.Int", Type: "int", Value: 66},
-				{Path: "Map.Arr.0", Type: "int", Value: 77},
-				{Path: "Map.Arr.1", Type: "int", Value: 88},
+				{Path: "Int", Type: "int", Data: 11},
+				{Path: "IntPtr", Type: "int", Data: 22},
+				{Path: "String", Type: "string", Data: "Hello"},
+				{Path: "Slice.0.Int", Type: "int", Data: 33},
+				{Path: "Slice.0.IntPtr", Type: "int", Data: nil},
+				{Path: "Slice.0.String", Type: "string", Data: ""},
+				{Path: "Slice.0.Slice", Type: "slice", Data: nil},
+				{Path: "Slice.0.SlicePtr", Type: "slice", Data: nil},
+				{Path: "Slice.0.Struct", Type: "struct", Data: nil},
+				{Path: "Slice.0.Any", Type: "interface", Data: nil},
+				{Path: "Slice.0.Map", Type: "map", Data: nil},
+				{Path: "SlicePtr.0.Int", Type: "int", Data: 44},
+				{Path: "SlicePtr.0.IntPtr", Type: "int", Data: nil},
+				{Path: "SlicePtr.0.String", Type: "string", Data: ""},
+				{Path: "SlicePtr.0.Slice", Type: "slice", Data: nil},
+				{Path: "SlicePtr.0.SlicePtr", Type: "slice", Data: nil},
+				{Path: "SlicePtr.0.Struct", Type: "struct", Data: nil},
+				{Path: "SlicePtr.0.Any", Type: "interface", Data: nil},
+				{Path: "SlicePtr.0.Map", Type: "map", Data: nil},
+				{Path: "Struct.Int", Type: "int", Data: 55},
+				{Path: "Struct.IntPtr", Type: "int", Data: nil},
+				{Path: "Struct.String", Type: "string", Data: ""},
+				{Path: "Struct.Slice", Type: "slice", Data: nil},
+				{Path: "Struct.SlicePtr", Type: "slice", Data: nil},
+				{Path: "Struct.Struct", Type: "struct", Data: nil},
+				{Path: "Struct.Any", Type: "interface", Data: nil},
+				{Path: "Struct.Map", Type: "map", Data: nil},
+				{Path: "Any.Int", Type: "int", Data: 66},
+				{Path: "Map.Arr.0", Type: "int", Data: 77},
+				{Path: "Map.Arr.1", Type: "int", Data: 88},
 			},
 		},
 	}
@@ -517,7 +517,7 @@ func TestDescribe(t *testing.T) {
 		{
 			Desc: "int root",
 			Give: 3,
-			Then: rift.Tree{Type: "int", Value: 3},
+			Then: rift.Tree{Type: "int", Data: 3},
 		},
 		{
 			Desc: "zero struct",
@@ -525,14 +525,14 @@ func TestDescribe(t *testing.T) {
 			Then: rift.Tree{
 				Type: "struct",
 				Next: []rift.Tree{
-					{Name: "Int", Path: "Int", Type: "int", Value: 0},
-					{Name: "IntPtr", Path: "IntPtr", Type: "int", Value: nil},
-					{Name: "String", Path: "String", Type: "string", Value: ""},
-					{Name: "Slice", Path: "Slice", Type: "slice", Value: nil},
-					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Value: nil},
-					{Name: "Struct", Path: "Struct", Type: "struct", Value: nil},
-					{Name: "Any", Path: "Any", Type: "interface", Value: nil},
-					{Name: "Map", Path: "Map", Type: "map", Value: nil},
+					{Name: "Int", Path: "Int", Type: "int", Data: 0},
+					{Name: "IntPtr", Path: "IntPtr", Type: "int", Data: nil},
+					{Name: "String", Path: "String", Type: "string", Data: ""},
+					{Name: "Slice", Path: "Slice", Type: "slice", Data: nil},
+					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Data: nil},
+					{Name: "Struct", Path: "Struct", Type: "struct", Data: nil},
+					{Name: "Any", Path: "Any", Type: "interface", Data: nil},
+					{Name: "Map", Path: "Map", Type: "map", Data: nil},
 				},
 			},
 		},
@@ -551,50 +551,50 @@ func TestDescribe(t *testing.T) {
 			Then: rift.Tree{
 				Type: "struct",
 				Next: []rift.Tree{
-					{Name: "Int", Path: "Int", Type: "int", Value: 11},
-					{Name: "IntPtr", Path: "IntPtr", Type: "int", Value: 22},
-					{Name: "String", Path: "String", Type: "string", Value: "Hello"},
-					{Name: "Slice", Path: "Slice", Type: "slice", Value: nil, Next: []rift.Tree{
-						{Name: "0", Path: "Slice.0", Type: "struct", Value: nil, Next: []rift.Tree{
-							{Name: "Int", Path: "Slice.0.Int", Type: "int", Value: 33},
-							{Name: "IntPtr", Path: "Slice.0.IntPtr", Type: "int", Value: nil},
-							{Name: "String", Path: "Slice.0.String", Type: "string", Value: ""},
-							{Name: "Slice", Path: "Slice.0.Slice", Type: "slice", Value: nil},
-							{Name: "SlicePtr", Path: "Slice.0.SlicePtr", Type: "slice", Value: nil},
-							{Name: "Struct", Path: "Slice.0.Struct", Type: "struct", Value: nil},
-							{Name: "Any", Path: "Slice.0.Any", Type: "interface", Value: nil},
-							{Name: "Map", Path: "Slice.0.Map", Type: "map", Value: nil},
+					{Name: "Int", Path: "Int", Type: "int", Data: 11},
+					{Name: "IntPtr", Path: "IntPtr", Type: "int", Data: 22},
+					{Name: "String", Path: "String", Type: "string", Data: "Hello"},
+					{Name: "Slice", Path: "Slice", Type: "slice", Data: nil, Next: []rift.Tree{
+						{Name: "0", Path: "Slice.0", Type: "struct", Data: nil, Next: []rift.Tree{
+							{Name: "Int", Path: "Slice.0.Int", Type: "int", Data: 33},
+							{Name: "IntPtr", Path: "Slice.0.IntPtr", Type: "int", Data: nil},
+							{Name: "String", Path: "Slice.0.String", Type: "string", Data: ""},
+							{Name: "Slice", Path: "Slice.0.Slice", Type: "slice", Data: nil},
+							{Name: "SlicePtr", Path: "Slice.0.SlicePtr", Type: "slice", Data: nil},
+							{Name: "Struct", Path: "Slice.0.Struct", Type: "struct", Data: nil},
+							{Name: "Any", Path: "Slice.0.Any", Type: "interface", Data: nil},
+							{Name: "Map", Path: "Slice.0.Map", Type: "map", Data: nil},
 						}},
 					}},
-					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Value: nil, Next: []rift.Tree{
-						{Name: "0", Path: "SlicePtr.0", Type: "struct", Value: nil, Next: []rift.Tree{
-							{Name: "Int", Path: "SlicePtr.0.Int", Type: "int", Value: 44},
-							{Name: "IntPtr", Path: "SlicePtr.0.IntPtr", Type: "int", Value: nil},
-							{Name: "String", Path: "SlicePtr.0.String", Type: "string", Value: ""},
-							{Name: "Slice", Path: "SlicePtr.0.Slice", Type: "slice", Value: nil},
-							{Name: "SlicePtr", Path: "SlicePtr.0.SlicePtr", Type: "slice", Value: nil},
-							{Name: "Struct", Path: "SlicePtr.0.Struct", Type: "struct", Value: nil},
-							{Name: "Any", Path: "SlicePtr.0.Any", Type: "interface", Value: nil},
-							{Name: "Map", Path: "SlicePtr.0.Map", Type: "map", Value: nil},
+					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Data: nil, Next: []rift.Tree{
+						{Name: "0", Path: "SlicePtr.0", Type: "struct", Data: nil, Next: []rift.Tree{
+							{Name: "Int", Path: "SlicePtr.0.Int", Type: "int", Data: 44},
+							{Name: "IntPtr", Path: "SlicePtr.0.IntPtr", Type: "int", Data: nil},
+							{Name: "String", Path: "SlicePtr.0.String", Type: "string", Data: ""},
+							{Name: "Slice", Path: "SlicePtr.0.Slice", Type: "slice", Data: nil},
+							{Name: "SlicePtr", Path: "SlicePtr.0.SlicePtr", Type: "slice", Data: nil},
+							{Name: "Struct", Path: "SlicePtr.0.Struct", Type: "struct", Data: nil},
+							{Name: "Any", Path: "SlicePtr.0.Any", Type: "interface", Data: nil},
+							{Name: "Map", Path: "SlicePtr.0.Map", Type: "map", Data: nil},
 						}},
 					}},
-					{Name: "Struct", Path: "Struct", Type: "struct", Value: nil, Next: []rift.Tree{
-						{Name: "Int", Path: "Struct.Int", Type: "int", Value: 55},
-						{Name: "IntPtr", Path: "Struct.IntPtr", Type: "int", Value: nil},
-						{Name: "String", Path: "Struct.String", Type: "string", Value: ""},
-						{Name: "Slice", Path: "Struct.Slice", Type: "slice", Value: nil},
-						{Name: "SlicePtr", Path: "Struct.SlicePtr", Type: "slice", Value: nil},
-						{Name: "Struct", Path: "Struct.Struct", Type: "struct", Value: nil},
-						{Name: "Any", Path: "Struct.Any", Type: "interface", Value: nil},
-						{Name: "Map", Path: "Struct.Map", Type: "map", Value: nil},
+					{Name: "Struct", Path: "Struct", Type: "struct", Data: nil, Next: []rift.Tree{
+						{Name: "Int", Path: "Struct.Int", Type: "int", Data: 55},
+						{Name: "IntPtr", Path: "Struct.IntPtr", Type: "int", Data: nil},
+						{Name: "String", Path: "Struct.String", Type: "string", Data: ""},
+						{Name: "Slice", Path: "Struct.Slice", Type: "slice", Data: nil},
+						{Name: "SlicePtr", Path: "Struct.SlicePtr", Type: "slice", Data: nil},
+						{Name: "Struct", Path: "Struct.Struct", Type: "struct", Data: nil},
+						{Name: "Any", Path: "Struct.Any", Type: "interface", Data: nil},
+						{Name: "Map", Path: "Struct.Map", Type: "map", Data: nil},
 					}},
-					{Name: "Any", Path: "Any", Type: "map", Value: nil, Next: []rift.Tree{
-						{Name: "Int", Path: "Any.Int", Type: "int", Value: 66},
+					{Name: "Any", Path: "Any", Type: "map", Data: nil, Next: []rift.Tree{
+						{Name: "Int", Path: "Any.Int", Type: "int", Data: 66},
 					}},
-					{Name: "Map", Path: "Map", Type: "map", Value: nil, Next: []rift.Tree{
-						{Name: "Arr", Path: "Map.Arr", Type: "slice", Value: nil, Next: []rift.Tree{
-							{Name: "0", Path: "Map.Arr.0", Type: "int", Value: 77},
-							{Name: "1", Path: "Map.Arr.1", Type: "int", Value: 88},
+					{Name: "Map", Path: "Map", Type: "map", Data: nil, Next: []rift.Tree{
+						{Name: "Arr", Path: "Map.Arr", Type: "slice", Data: nil, Next: []rift.Tree{
+							{Name: "0", Path: "Map.Arr.0", Type: "int", Data: 77},
+							{Name: "1", Path: "Map.Arr.1", Type: "int", Data: 88},
 						}},
 					}},
 				},
