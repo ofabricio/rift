@@ -82,82 +82,64 @@ func Bind(dst any, fs ...Unbound) []Bound {
 
 func bind(dst, val reflect.Value, path string) (old any) {
 
-	ptr := dst
-	dst = reflect.Indirect(dst)
-
 	keyOrIdx, rest, _ := strings.Cut(path, ".")
 
 	switch dst.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if dst.IsNil() {
+			dst.Set(reflect.New(dst.Type().Elem()))
+			_ = bind(dst.Elem(), val, path)
+			old = nil
+		} else {
+			old = bind(dst.Elem(), val, path)
+		}
 	case reflect.Interface:
 		if path == "" {
 			old = dst.Interface()
 			dst.Set(val)
-			return
-		}
-		if n, ok := getNumber(keyOrIdx); ok {
+		} else if n, ok := getNumber(keyOrIdx); ok {
 			if dst.IsNil() {
 				new := reflect.MakeSlice(reflect.TypeFor[[]any](), n+1, n+1)
 				dst.Set(new)
-				old = bind(dst.Elem().Index(n), val, rest)
 			} else if n >= dst.Elem().Len() {
 				new := reflect.MakeSlice(dst.Elem().Type(), n+1, n+1)
 				reflect.Copy(new, dst.Elem())
 				dst.Set(new)
-				old = bind(new.Index(n), val, rest)
-			} else {
-				old = bind(dst.Elem().Index(n), val, rest)
 			}
+			old = bind(dst.Elem().Index(n), val, rest)
 		} else {
 			if dst.IsNil() {
 				new := reflect.MakeMap(reflect.TypeFor[map[string]any]())
 				dst.Set(new)
-				old = bind(new, val, path)
-			} else {
-				old = bind(dst.Elem(), val, path)
 			}
+			old = bind(dst.Elem(), val, path)
 		}
-		return
 	case reflect.Slice:
 		n, _ := getNumber(keyOrIdx)
-		if n < dst.Len() {
-			old = bind(dst.Index(n), val, rest)
-		} else {
-			newSlice := reflect.MakeSlice(dst.Type(), n+1, n+1)
-			reflect.Copy(newSlice, dst)
-			dst.Set(newSlice)
-			old = bind(dst.Index(n), val, rest)
-		}
-		return
-	case reflect.Map:
-		if dst.IsNil() {
-			new := reflect.MakeMap(dst.Type())
+		if n >= dst.Len() {
+			new := reflect.MakeSlice(dst.Type(), n+1, n+1)
+			reflect.Copy(new, dst)
 			dst.Set(new)
 		}
-		key := reflect.ValueOf(keyOrIdx)
-		item := dst.MapIndex(key)
-		if !item.IsValid() {
-			item = reflect.New(dst.Type().Elem()).Elem()
+		old = bind(dst.Index(n), val, rest)
+	case reflect.Map:
+		if dst.IsNil() {
+			dst.Set(reflect.MakeMap(dst.Type()))
 		}
-		n := reflect.New(item.Type()).Elem()
-		n.Set(item)
-		old = bind(n, val, rest)
-		dst.SetMapIndex(key, n.Elem())
-		return
+		k := reflect.ValueOf(keyOrIdx)
+		v := dst.MapIndex(k)
+		if !v.IsValid() {
+			v = reflect.New(dst.Type().Elem()).Elem()
+		}
+		new := reflect.New(v.Type()).Elem()
+		new.Set(v)
+		old = bind(new, val, rest)
+		dst.SetMapIndex(k, new.Elem())
 	case reflect.Struct:
-		field := dst.FieldByName(keyOrIdx)
-		old = bind(field, val, rest)
-		return
-	}
-	if ptr.Kind() == reflect.Pointer {
-		if ptr.IsNil() {
-			n := reflect.New(ptr.Type().Elem())
-			_ = bind(n.Elem(), val, path)
-			ptr.Set(n)
-			old = nil
-		} else {
-			old = bind(ptr.Elem(), val, path)
-		}
-	} else {
+		key := dst.FieldByName(keyOrIdx)
+		old = bind(key, val, rest)
+	default:
 		old = dst.Interface()
 		dst.Set(val)
 	}
