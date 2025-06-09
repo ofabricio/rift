@@ -10,52 +10,53 @@ import (
 // It returns a slice of unbound values that
 // contain the field's path, type, and value.
 func Unbind(v any) []Unbound {
-	return unbind(reflect.ValueOf(v), "")
+	var out []Unbound
+	unbind(reflect.ValueOf(v), "", &out)
+	return out
 }
 
-func unbind(v reflect.Value, path string) (vs []Unbound) {
+func unbind(v reflect.Value, path string, out *[]Unbound) {
 	switch v.Kind() {
 	case reflect.Invalid:
-		vs = append(vs, Field(path, nil))
+		*out = append(*out, Field(path, nil))
 	case reflect.Interface:
-		vs = append(vs, unbind(v.Elem(), path)...)
+		unbind(v.Elem(), path, out)
 	case reflect.Pointer:
 		if v.IsNil() {
-			vs = append(vs, fieldWithType(path, nil, v.Type().Elem().Kind().String()))
+			*out = append(*out, fieldWithType(path, nil, v.Type().Elem().Kind().String()))
 			return
 		}
-		vs = append(vs, unbind(v.Elem(), path)...)
+		unbind(v.Elem(), path, out)
 	case reflect.Struct:
 		for i := range v.NumField() {
 			f := v.Field(i)
 			p := v.Type().Field(i).Name
-			vs = append(vs, unbind(f, joinPath(path, p))...)
+			unbind(f, joinPath(path, p), out)
 		}
 	case reflect.Map:
-		if v.IsNil() || v.Len() == 0 {
-			vs = append(vs, fieldWithType(path, nil, reflect.Map.String()))
+		if v.Len() == 0 {
+			*out = append(*out, fieldWithType(path, nil, reflect.Map.String()))
 			return
 		}
 		for iter := v.MapRange(); iter.Next(); {
 			k := iter.Key()
 			v := iter.Value()
 			p := k.String()
-			vs = append(vs, unbind(v, joinPath(path, p))...)
+			unbind(v, joinPath(path, p), out)
 		}
 	case reflect.Slice:
-		if v.IsNil() || v.Len() == 0 {
-			vs = append(vs, fieldWithType(path, nil, reflect.Slice.String()))
+		if v.Len() == 0 {
+			*out = append(*out, fieldWithType(path, nil, reflect.Slice.String()))
 			return
 		}
 		for i := range v.Len() {
 			f := v.Index(i)
 			p := strconv.Itoa(i)
-			vs = append(vs, unbind(f, joinPath(path, p))...)
+			unbind(f, joinPath(path, p), out)
 		}
 	default:
-		vs = append(vs, Field(path, v.Interface()))
+		*out = append(*out, Field(path, v.Interface()))
 	}
-	return
 }
 
 func joinPath(path, subpath string) string {
