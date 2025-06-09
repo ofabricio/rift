@@ -2,7 +2,15 @@
 
 Bind and Unbind values to a struct with a path notation.
 
-## Bind and Unbind Example
+## Install
+
+```sh
+go get github.com/ofabricio/rift
+```
+
+## Examples
+
+### Bind and Unbind
 
 This example shows how `Bind` function binds values to a struct based on the provided paths; and shows
 how `Unbind` function extracts public fields from a struct.
@@ -59,7 +67,7 @@ Note that `Bind` function returns a slice of bound values, which contains the fi
 
 Note that `Unbind` function returns a slice of unbound values, which contains the field path, type and value.
 
-## Describe Example
+### Describe
 
 This example shows how `Describe` function returns a tree representation of the provided struct.
 
