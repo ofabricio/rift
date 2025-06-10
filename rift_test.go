@@ -21,45 +21,34 @@ func Example() {
 
 	user.Name = "Luke"
 
-	bs := rift.Bind(&user,
-		rift.Field("Name", "John"),
-		rift.Field("Addresses.0.Street", "Main"),
-		rift.Field("Addresses.0.Number", 100),
-		rift.Field("Addresses.1.Street", "Avenue"),
-		rift.Field("Addresses.1.Number", 200),
+	chg := rift.SetMany(&user,
+		rift.Path("Name", "John"),
+		rift.Path("Addresses.0.Street", "Main"),
+		rift.Path("Addresses.0.Number", 100),
+		rift.Path("Addresses.1.Street", "Avenue"),
+		rift.Path("Addresses.1.Number", 200),
 	)
 
 	fmt.Println("User:")
 	fmt.Println(user)
 
-	fmt.Println("Bound:")
-	for _, v := range bs {
+	fmt.Println("Changes:")
+	for _, v := range chg {
 		fmt.Println(v.Path, v.Type, v.Old, v.New)
-	}
-
-	fmt.Println("Unbind:")
-	for _, v := range rift.Unbind(&user) {
-		fmt.Println(v.Path, v.Type, v.Data)
 	}
 
 	// Output:
 	// User:
 	// {John [{Main 100} {Avenue 200}]}
-	// Bound:
+	// Changes:
 	// Name string Luke John
 	// Addresses.0.Street string  Main
 	// Addresses.0.Number int 0 100
 	// Addresses.1.Street string  Avenue
 	// Addresses.1.Number int 0 200
-	// Unbind:
-	// Name string John
-	// Addresses.0.Street string Main
-	// Addresses.0.Number int 100
-	// Addresses.1.Street string Avenue
-	// Addresses.1.Number int 200
 }
 
-func ExampleDescribe() {
+func ExampleGet() {
 
 	var user struct {
 		Name      string
@@ -69,15 +58,13 @@ func ExampleDescribe() {
 		}
 	}
 
-	rift.Bind(&user,
-		rift.Field("Name", "John"),
-		rift.Field("Addresses.0.Street", "Main"),
-		rift.Field("Addresses.0.Number", 100),
-		rift.Field("Addresses.1.Street", "Avenue"),
-		rift.Field("Addresses.1.Number", 200),
-	)
+	rift.SetPath(&user, "Name", "John")
+	rift.SetPath(&user, "Addresses.0.Street", "Main")
+	rift.SetPath(&user, "Addresses.0.Number", 100)
+	rift.SetPath(&user, "Addresses.1.Street", "Avenue")
+	rift.SetPath(&user, "Addresses.1.Number", 200)
 
-	tree := rift.Describe(user)
+	tree := rift.Get(user)
 
 	data, _ := json.MarshalIndent(tree, "", "    ")
 
@@ -153,51 +140,86 @@ func ExampleDescribe() {
 	// }
 }
 
-func TestBind(t *testing.T) {
+func ExampleSet() {
+
+	var user struct {
+		Name      string
+		Addresses []struct {
+			Street string
+			Number int
+		}
+	}
+
+	node := rift.Node{
+		Next: []rift.Node{
+			{
+				Path: "Name",
+				Data: "John",
+			},
+			{
+				Next: []rift.Node{
+					{
+						Path: "Addresses.0.Street",
+						Data: "Main",
+					},
+				},
+			},
+		},
+	}
+
+	rift.Set(&user, node)
+
+	fmt.Println(user)
+
+	// Output:
+	// {John [{Main 0}]}
+}
+
+func TestSetMany(t *testing.T) {
 
 	tt := []struct {
 		Desc string
 		Give any
-		When []rift.Unbound
+		When []rift.Node
 		Then any
-		Bnds []rift.Bound
+		Bnds []rift.Change
 	}{
 		{
 			Desc: "given a nil source, it should set the root if field is empty",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("", 3),
+			When: []rift.Node{
+				rift.Path("", 3),
 			},
 			Then: 3,
-			Bnds: []rift.Bound{{Path: "", Type: "int", New: 3, Old: nil}},
+			Bnds: []rift.Change{{Path: "", Type: "int", New: 3, Old: nil}},
 		},
 		{
 			Desc: "given a nil source, it should set the root as a slice if field is number",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("0", 3),
+			When: []rift.Node{
+				rift.Path("0", 3),
 			},
 			Then: []any{3},
-			Bnds: []rift.Bound{{Path: "0", Type: "int", New: 3, Old: nil}},
+			Bnds: []rift.Change{{Path: "0", Type: "int", New: 3, Old: nil}},
 		},
 		{
 			Desc: "given a nil source, it should set the root as a slice of len=2 if field is number 1",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("1", 3),
+			When: []rift.Node{
+				rift.Path("1", 3),
 			},
 			Then: []any{nil, 3},
-			Bnds: []rift.Bound{{Path: "1", Type: "int", New: 3, Old: nil}},
+			Bnds: []rift.Change{{Path: "1", Type: "int", New: 3, Old: nil}},
 		},
 		{
 			Desc: "given a nil source, it should set the root as a slice of len=2",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("0", 2),
-				rift.Field("1", 3),
+			When: []rift.Node{
+				rift.Path("0", 2),
+				rift.Path("1", 3),
 			},
 			Then: []any{2, 3},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "0", Type: "int", New: 2, Old: nil},
 				{Path: "1", Type: "int", New: 3, Old: nil},
 			},
@@ -205,12 +227,12 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "test inverted slice indexes",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("1", 2),
-				rift.Field("0", 3),
+			When: []rift.Node{
+				rift.Path("1", 2),
+				rift.Path("0", 3),
 			},
 			Then: []any{3, 2},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "1", Type: "int", New: 2, Old: nil},
 				{Path: "0", Type: "int", New: 3, Old: nil},
 			},
@@ -218,23 +240,23 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "given a nil source, it should set the root as a map with key a",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a", 2),
+			When: []rift.Node{
+				rift.Path("a", 2),
 			},
 			Then: map[string]any{"a": 2},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a", Type: "int", New: 2, Old: nil},
 			},
 		},
 		{
 			Desc: "given a nil source, it should set the root as a map with key a and b",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a", 2),
-				rift.Field("b", 3),
+			When: []rift.Node{
+				rift.Path("a", 2),
+				rift.Path("b", 3),
 			},
 			Then: map[string]any{"a": 2, "b": 3},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a", Type: "int", New: 2, Old: nil},
 				{Path: "b", Type: "int", New: 3, Old: nil},
 			},
@@ -242,13 +264,13 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "given a nil source, it should set the root as a map with key a and b; and key c should also be a map",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a", 2),
-				rift.Field("b", 3),
-				rift.Field("c.a", 3),
+			When: []rift.Node{
+				rift.Path("a", 2),
+				rift.Path("b", 3),
+				rift.Path("c.a", 3),
 			},
 			Then: map[string]any{"a": 2, "b": 3, "c": map[string]any{"a": 3}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a", Type: "int", New: 2, Old: nil},
 				{Path: "b", Type: "int", New: 3, Old: nil},
 				{Path: "c.a", Type: "int", New: 3, Old: nil},
@@ -257,14 +279,14 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "given a nil source, it should set the root as a map with key a and b; and key c should also be a map with key a and b",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a", 2),
-				rift.Field("b", 3),
-				rift.Field("c.a", 4),
-				rift.Field("c.b", 5),
+			When: []rift.Node{
+				rift.Path("a", 2),
+				rift.Path("b", 3),
+				rift.Path("c.a", 4),
+				rift.Path("c.b", 5),
 			},
 			Then: map[string]any{"a": 2, "b": 3, "c": map[string]any{"a": 4, "b": 5}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a", Type: "int", New: 2, Old: nil},
 				{Path: "b", Type: "int", New: 3, Old: nil},
 				{Path: "c.a", Type: "int", New: 4, Old: nil},
@@ -274,34 +296,34 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "if a subfield of a generic map key has an index, that field should be a slice",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a.b.0", 3),
+			When: []rift.Node{
+				rift.Path("a.b.0", 3),
 			},
 			Then: map[string]any{"a": map[string]any{"b": []any{3}}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a.b.0", Type: "int", New: 3, Old: nil},
 			},
 		},
 		{
 			Desc: "same as above, but with index 1",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a.b.1", 3),
+			When: []rift.Node{
+				rift.Path("a.b.1", 3),
 			},
 			Then: map[string]any{"a": map[string]any{"b": []any{nil, 3}}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a.b.1", Type: "int", New: 3, Old: nil},
 			},
 		},
 		{
 			Desc: "same as above, but with index 0 and 1",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a.a.0", 2),
-				rift.Field("a.a.1", 3),
+			When: []rift.Node{
+				rift.Path("a.a.0", 2),
+				rift.Path("a.a.1", 3),
 			},
 			Then: map[string]any{"a": map[string]any{"a": []any{2, 3}}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a.a.0", Type: "int", New: 2, Old: nil},
 				{Path: "a.a.1", Type: "int", New: 3, Old: nil},
 			},
@@ -309,12 +331,12 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "same as above, but with inverted indexes",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a.a.1", 2),
-				rift.Field("a.a.0", 3),
+			When: []rift.Node{
+				rift.Path("a.a.1", 2),
+				rift.Path("a.a.0", 3),
 			},
 			Then: map[string]any{"a": map[string]any{"a": []any{3, 2}}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a.a.1", Type: "int", New: 2, Old: nil},
 				{Path: "a.a.0", Type: "int", New: 3, Old: nil},
 			},
@@ -322,13 +344,13 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "now a slice with a map inside",
 			Give: nil,
-			When: []rift.Unbound{
-				rift.Field("a.a.0", 2),
-				rift.Field("a.a.1.a", 3),
-				rift.Field("a.a.1.b", 4),
+			When: []rift.Node{
+				rift.Path("a.a.0", 2),
+				rift.Path("a.a.1.a", 3),
+				rift.Path("a.a.1.b", 4),
 			},
 			Then: map[string]any{"a": map[string]any{"a": []any{2, map[string]any{"a": 3, "b": 4}}}},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "a.a.0", Type: "int", New: 2, Old: nil},
 				{Path: "a.a.1.a", Type: "int", New: 3, Old: nil},
 				{Path: "a.a.1.b", Type: "int", New: 4, Old: nil},
@@ -337,17 +359,17 @@ func TestBind(t *testing.T) {
 		{
 			Desc: "test setting many different field types of a struct",
 			Give: &TestData{},
-			When: []rift.Unbound{
-				rift.Field("Int", 2),
-				rift.Field("IntPtr", 3),
-				rift.Field("String", "Hi"),
-				rift.Field("Slice.0.Int", 1),
-				rift.Field("SlicePtr.0.Int", 1),
-				rift.Field("Struct.Int", 1),
-				rift.Field("Any.Int", 1),
-				rift.Field("Map.Int", 1),
-				rift.Field("Map.Arr.1", 1),
-				rift.Field("Map.Arr.0", 2),
+			When: []rift.Node{
+				rift.Path("Int", 2),
+				rift.Path("IntPtr", 3),
+				rift.Path("String", "Hi"),
+				rift.Path("Slice.0.Int", 1),
+				rift.Path("SlicePtr.0.Int", 1),
+				rift.Path("Struct.Int", 1),
+				rift.Path("Any.Int", 1),
+				rift.Path("Map.Int", 1),
+				rift.Path("Map.Arr.1", 1),
+				rift.Path("Map.Arr.0", 2),
 			},
 			Then: &TestData{
 				Int:      2,
@@ -359,7 +381,7 @@ func TestBind(t *testing.T) {
 				Any:      map[string]any{"Int": 1},
 				Map:      map[string]any{"Int": 1, "Arr": []any{2, 1}},
 			},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "Int", Type: "int", New: 2, Old: 0},
 				{Path: "IntPtr", Type: "int", New: 3, Old: nil},
 				{Path: "String", Type: "string", New: "Hi", Old: ""},
@@ -384,17 +406,17 @@ func TestBind(t *testing.T) {
 				Any:      map[string]any{"Int": 66},
 				Map:      map[string]any{"Int": 77, "Arr": []any{88, 99}},
 			},
-			When: []rift.Unbound{
-				rift.Field("Int", 2),
-				rift.Field("IntPtr", 3),
-				rift.Field("String", "Hi"),
-				rift.Field("Slice.0.Int", 1),
-				rift.Field("SlicePtr.0.Int", 1),
-				rift.Field("Struct.Int", 1),
-				rift.Field("Any.Int", 1),
-				rift.Field("Map.Int", 1),
-				rift.Field("Map.Arr.1", 1),
-				rift.Field("Map.Arr.0", 2),
+			When: []rift.Node{
+				rift.Path("Int", 2),
+				rift.Path("IntPtr", 3),
+				rift.Path("String", "Hi"),
+				rift.Path("Slice.0.Int", 1),
+				rift.Path("SlicePtr.0.Int", 1),
+				rift.Path("Struct.Int", 1),
+				rift.Path("Any.Int", 1),
+				rift.Path("Map.Int", 1),
+				rift.Path("Map.Arr.1", 1),
+				rift.Path("Map.Arr.0", 2),
 			},
 			Then: &TestData{
 				Int:      2,
@@ -406,7 +428,7 @@ func TestBind(t *testing.T) {
 				Any:      map[string]any{"Int": 1},
 				Map:      map[string]any{"Int": 1, "Arr": []any{2, 1}},
 			},
-			Bnds: []rift.Bound{
+			Bnds: []rift.Change{
 				{Path: "Int", Type: "int", New: 2, Old: 11},
 				{Path: "IntPtr", Type: "int", New: 3, Old: 22},
 				{Path: "String", Type: "string", New: "Hi", Old: "Hello"},
@@ -422,23 +444,23 @@ func TestBind(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		bs := rift.Bind(&tc.Give, tc.When...)
+		bs := rift.SetMany(&tc.Give, tc.When...)
 		assertEqual(t, tc.Then, tc.Give, tc.Desc)
 		assertEqual(t, tc.Bnds, bs, tc.Desc)
 	}
 }
 
-func TestUnbind(t *testing.T) {
+func TestGetFlat(t *testing.T) {
 
 	tt := []struct {
 		Desc string
 		Give any
-		Then []rift.Unbound
+		Then []rift.Node
 	}{
 		{
-			Desc: "Unbind empty struct",
+			Desc: "empty struct",
 			Give: TestData{},
-			Then: []rift.Unbound{
+			Then: []rift.Node{
 				{Path: "Int", Type: "int", Data: 0},
 				{Path: "IntPtr", Type: "int", Data: nil},
 				{Path: "String", Type: "string", Data: ""},
@@ -450,7 +472,7 @@ func TestUnbind(t *testing.T) {
 			},
 		},
 		{
-			Desc: "Unbind filled struct",
+			Desc: "filled struct",
 			Give: TestData{
 				Int:      11,
 				IntPtr:   ptr(22),
@@ -461,7 +483,7 @@ func TestUnbind(t *testing.T) {
 				Any:      map[string]any{"Int": 66},
 				Map:      map[string]any{"Arr": []any{77, 88}},
 			},
-			Then: []rift.Unbound{
+			Then: []rift.Node{
 				{Path: "Int", Type: "int", Data: 11},
 				{Path: "IntPtr", Type: "int", Data: 22},
 				{Path: "String", Type: "string", Data: "Hello"},
@@ -497,12 +519,12 @@ func TestUnbind(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		bs := rift.Unbind(&tc.Give)
+		bs := rift.GetFlat(&tc.Give)
 		assertEqual(t, tc.Then, bs, tc.Desc)
 	}
 }
 
-func TestDescribe(t *testing.T) {
+func TestGet(t *testing.T) {
 
 	tt := []struct {
 		Desc string
@@ -512,19 +534,19 @@ func TestDescribe(t *testing.T) {
 		{
 			Desc: "nil root",
 			Give: nil,
-			Then: rift.Tree{Type: "interface"},
+			Then: rift.Node{Type: "interface"},
 		},
 		{
 			Desc: "int root",
 			Give: 3,
-			Then: rift.Tree{Type: "int", Data: 3},
+			Then: rift.Node{Type: "int", Data: 3},
 		},
 		{
 			Desc: "zero struct",
 			Give: TestData{},
-			Then: rift.Tree{
+			Then: rift.Node{
 				Type: "struct",
-				Next: []rift.Tree{
+				Next: []rift.Node{
 					{Name: "Int", Path: "Int", Type: "int", Data: 0},
 					{Name: "IntPtr", Path: "IntPtr", Type: "int", Data: nil},
 					{Name: "String", Path: "String", Type: "string", Data: ""},
@@ -548,14 +570,14 @@ func TestDescribe(t *testing.T) {
 				Any:      map[string]any{"Int": 66},
 				Map:      map[string]any{"Arr": []any{77, 88}},
 			},
-			Then: rift.Tree{
+			Then: rift.Node{
 				Type: "struct",
-				Next: []rift.Tree{
+				Next: []rift.Node{
 					{Name: "Int", Path: "Int", Type: "int", Data: 11},
 					{Name: "IntPtr", Path: "IntPtr", Type: "int", Data: 22},
 					{Name: "String", Path: "String", Type: "string", Data: "Hello"},
-					{Name: "Slice", Path: "Slice", Type: "slice", Data: nil, Next: []rift.Tree{
-						{Name: "0", Path: "Slice.0", Type: "struct", Data: nil, Next: []rift.Tree{
+					{Name: "Slice", Path: "Slice", Type: "slice", Data: nil, Next: []rift.Node{
+						{Name: "0", Path: "Slice.0", Type: "struct", Data: nil, Next: []rift.Node{
 							{Name: "Int", Path: "Slice.0.Int", Type: "int", Data: 33},
 							{Name: "IntPtr", Path: "Slice.0.IntPtr", Type: "int", Data: nil},
 							{Name: "String", Path: "Slice.0.String", Type: "string", Data: ""},
@@ -566,8 +588,8 @@ func TestDescribe(t *testing.T) {
 							{Name: "Map", Path: "Slice.0.Map", Type: "map", Data: nil},
 						}},
 					}},
-					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Data: nil, Next: []rift.Tree{
-						{Name: "0", Path: "SlicePtr.0", Type: "struct", Data: nil, Next: []rift.Tree{
+					{Name: "SlicePtr", Path: "SlicePtr", Type: "slice", Data: nil, Next: []rift.Node{
+						{Name: "0", Path: "SlicePtr.0", Type: "struct", Data: nil, Next: []rift.Node{
 							{Name: "Int", Path: "SlicePtr.0.Int", Type: "int", Data: 44},
 							{Name: "IntPtr", Path: "SlicePtr.0.IntPtr", Type: "int", Data: nil},
 							{Name: "String", Path: "SlicePtr.0.String", Type: "string", Data: ""},
@@ -578,7 +600,7 @@ func TestDescribe(t *testing.T) {
 							{Name: "Map", Path: "SlicePtr.0.Map", Type: "map", Data: nil},
 						}},
 					}},
-					{Name: "Struct", Path: "Struct", Type: "struct", Data: nil, Next: []rift.Tree{
+					{Name: "Struct", Path: "Struct", Type: "struct", Data: nil, Next: []rift.Node{
 						{Name: "Int", Path: "Struct.Int", Type: "int", Data: 55},
 						{Name: "IntPtr", Path: "Struct.IntPtr", Type: "int", Data: nil},
 						{Name: "String", Path: "Struct.String", Type: "string", Data: ""},
@@ -588,11 +610,11 @@ func TestDescribe(t *testing.T) {
 						{Name: "Any", Path: "Struct.Any", Type: "interface", Data: nil},
 						{Name: "Map", Path: "Struct.Map", Type: "map", Data: nil},
 					}},
-					{Name: "Any", Path: "Any", Type: "map", Data: nil, Next: []rift.Tree{
+					{Name: "Any", Path: "Any", Type: "map", Data: nil, Next: []rift.Node{
 						{Name: "Int", Path: "Any.Int", Type: "int", Data: 66},
 					}},
-					{Name: "Map", Path: "Map", Type: "map", Data: nil, Next: []rift.Tree{
-						{Name: "Arr", Path: "Map.Arr", Type: "slice", Data: nil, Next: []rift.Tree{
+					{Name: "Map", Path: "Map", Type: "map", Data: nil, Next: []rift.Node{
+						{Name: "Arr", Path: "Map.Arr", Type: "slice", Data: nil, Next: []rift.Node{
 							{Name: "0", Path: "Map.Arr.0", Type: "int", Data: 77},
 							{Name: "1", Path: "Map.Arr.1", Type: "int", Data: 88},
 						}},
@@ -603,8 +625,45 @@ func TestDescribe(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		tree := rift.Describe(tc.Give)
+		tree := rift.Get(tc.Give)
 		assertEqual(t, tc.Then, tree, tc.Desc)
+	}
+}
+
+func TestSet(t *testing.T) {
+
+	tt := []struct {
+		Desc string
+		Give any
+		When rift.Node
+		Then any
+		Chng []rift.Change
+	}{
+		{
+			Desc: "set a field",
+			Give: &TestData{},
+			When: rift.Node{Path: "Int", Data: 3},
+			Then: &TestData{Int: 3},
+			Chng: []rift.Change{
+				{Path: "Int", Type: "int", New: 3, Old: 0},
+			},
+		},
+		{
+			Desc: "set subfields",
+			Give: &TestData{Struct: &TestData{Int: 3, String: "A"}},
+			When: rift.Node{Next: []rift.Node{{Path: "Struct.Int", Data: 4}, {Path: "Struct.String", Data: "B"}}},
+			Then: &TestData{Struct: &TestData{Int: 4, String: "B"}},
+			Chng: []rift.Change{
+				{Path: "Struct.Int", Type: "int", New: 4, Old: 3},
+				{Path: "Struct.String", Type: "string", New: "B", Old: "A"},
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		cs := rift.Set(tc.Give, tc.When)
+		assertEqual(t, tc.Then, tc.Give, tc.Desc)
+		assertEqual(t, tc.Chng, cs, tc.Desc)
 	}
 }
 

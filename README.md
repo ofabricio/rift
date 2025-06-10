@@ -1,6 +1,6 @@
 # rift
 
-Bind and Unbind values to a struct with a path notation.
+Assign values to a struct using path notation to partially update it and track the changes.
 
 ## Install
 
@@ -10,10 +10,7 @@ go get github.com/ofabricio/rift
 
 ## Examples
 
-### Bind and Unbind
-
-This example shows how `Bind` function binds values to a struct based on the provided paths; and shows
-how `Unbind` function extracts public fields from a struct.
+This example shows how to assign values to a struct and track the changes.
 
 ```go
 package main
@@ -32,18 +29,18 @@ func main() {
 
     user.Name = "Luke"
 
-    bs := rift.Bind(&user,
-        rift.Field("Name", "John"),
-        rift.Field("Addresses.0.Street", "Main"),
-        rift.Field("Addresses.0.Number", 100),
-        rift.Field("Addresses.1.Street", "Avenue"),
-        rift.Field("Addresses.1.Number", 200),
+    chg := rift.SetMany(&user,
+        rift.Path("Name", "John"),
+        rift.Path("Addresses.0.Street", "Main"),
+        rift.Path("Addresses.0.Number", 100),
+        rift.Path("Addresses.1.Street", "Avenue"),
+        rift.Path("Addresses.1.Number", 200),
     )
 
     fmt.Println(user)
     // {John [{Main 100} {Avenue 200}]}
 
-    for _, v := range bs {
+    for _, v := range chg {
         fmt.Println(v.Path, v.Type, v.Old, v.New)
         // Name               string Luke John
         // Addresses.0.Street string      Main
@@ -51,25 +48,14 @@ func main() {
         // Addresses.1.Street string      Avenue
         // Addresses.1.Number int    0    200
     }
-
-    for _, v := range rift.Unbind(&user) {
-        fmt.Println(v.Path, v.Type, v.Data)
-        // Name               string John
-        // Addresses.0.Street string Main
-        // Addresses.0.Number int    100
-        // Addresses.1.Street string Avenue
-        // Addresses.1.Number int    200
-    }
 }
 ```
 
-Note that `Bind` function returns a slice of bound values, which contains the field path, type, old value and new value.
+Note that `Set*` functions return the changes.
 
-Note that `Unbind` function returns a slice of unbound values, which contains the field path, type and value.
+### Tree
 
-### Describe
-
-This example shows how `Describe` function returns a tree representation of the provided struct.
+This example shows how to get a tree representation of the provided struct.
 
 ```go
 package main
@@ -86,15 +72,14 @@ func main() {
         }
     }
 
-    rift.Bind(&user,
-        rift.Field("Name", "John"),
-        rift.Field("Addresses.0.Street", "Main"),
-        rift.Field("Addresses.0.Number", 100),
-        rift.Field("Addresses.1.Street", "Avenue"),
-        rift.Field("Addresses.1.Number", 200),
-    )
+    // Other way to assign values.
+    rift.SetPath(&user, "Name", "John")
+    rift.SetPath(&user, "Addresses.0.Street", "Main")
+    rift.SetPath(&user, "Addresses.0.Number", 100)
+    rift.SetPath(&user, "Addresses.1.Street", "Avenue")
+    rift.SetPath(&user, "Addresses.1.Number", 200)
 
-    tree := rift.Describe(user)
+    tree := rift.Get(user)
 
     data, _ := json.MarshalIndent(tree, "", "    ")
 
@@ -170,3 +155,52 @@ func main() {
     // }
 }
 ```
+
+Now it is possible to update one of those nodes in the tree and
+pass it to `rift.Set(dst any, n Node)` function to update just that part of the struct.
+
+Example:
+
+```go
+package main
+
+import "github.com/ofabricio/rift"
+
+func main() {
+
+    var user struct {
+        Name      string
+        Addresses []struct {
+            Street string
+            Number int
+        }
+    }
+
+    node := rift.Node{
+        Next: []rift.Node{
+            {
+                Path: "Name",
+                Data: "John",
+            },
+            {
+                Next: []rift.Node{
+                    {
+                        Path: "Addresses.0.Street",
+                        Data: "Main",
+                    },
+                },
+            },
+        },
+    }
+
+    rift.Set(&user, node)
+
+    fmt.Println(user)
+
+    // Output:
+    // {John [{Main 0}]}
+}
+```
+
+Note that even though `Node` has more informations, only `Path` and `Data` are required to `Set`.
+Also only nodes with `Next == nil` are applied.
